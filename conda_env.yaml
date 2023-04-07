@@ -1,4 +1,4 @@
-name: CGP_filter
+name: its_shite
 channels:
   - defaults
 dependencies:
@@ -21,5 +21,5 @@ dependencies:
   - wheel=0.38.4=py39h06a4308_0
   - xz=5.2.5=h7f8727e_1
   - zlib=1.2.12=h7f8727e_2
-prefix: /home/pako/anaconda3/envs/CGP_filter
+prefix: /home/pako/anaconda3/envs/its_shite
 
