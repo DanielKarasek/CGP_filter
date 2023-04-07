@@ -266,3 +266,37 @@ Generation: 264 Best fitness: 0.7302275189599133
 Generation: 265 Best fitness: 0.7302275189599133
 Generation: 266 Best fitness: 0.7302275189599133
 Generation: 267 Best fitness: 0.7302275189599133
+Generation: 268 Best fitness: 0.7302275189599133
+Generation: 269 Best fitness: 0.7302275189599133
+Generation: 270 Best fitness: 0.7302275189599133
+Generation: 271 Best fitness: 0.7302275189599133
+Generation: 272 Best fitness: 0.7302275189599133
+Generation: 273 Best fitness: 0.7302275189599133
+Generation: 274 Best fitness: 0.7302275189599133
+Generation: 275 Best fitness: 0.7302275189599133
+Generation: 276 Best fitness: 0.7302275189599133
+Generation: 277 Best fitness: 0.7302275189599133
+Generation: 278 Best fitness: 0.7302275189599133
+Generation: 279 Best fitness: 0.7302275189599133
+Generation: 280 Best fitness: 0.7302275189599133
+Generation: 281 Best fitness: 0.7302275189599133
+Generation: 282 Best fitness: 0.7302275189599133
+Generation: 283 Best fitness: 0.7302275189599133
+Generation: 284 Best fitness: 0.7302275189599133
+Generation: 285 Best fitness: 0.7302275189599133
+Generation: 286 Best fitness: 0.7302275189599133
+Generation: 287 Best fitness: 0.7302275189599133
+Generation: 288 Best fitness: 0.7302275189599133
+Generation: 289 Best fitness: 0.7302275189599133
+Generation: 290 Best fitness: 0.7302275189599133
+Generation: 291 Best fitness: 0.7302275189599133
+Generation: 292 Best fitness: 0.7302275189599133
+Generation: 293 Best fitness: 0.7302275189599133
+Generation: 294 Best fitness: 0.7302275189599133
+Generation: 295 Best fitness: 0.7302275189599133
+Generation: 296 Best fitness: 0.7302275189599133
+Generation: 297 Best fitness: 0.7302275189599133
+Generation: 298 Best fitness: 0.7302275189599133
+Generation: 299 Best fitness: 0.7302275189599133
+Total pixels noised:  770 Correctly detected:  337 False alarm:   65 Missed detection:  433 
+Function counts: {<class 'functions.sat_add'>: 0, <class 'functions.sat_sub'>: 3, <class 'functions.cgp_min'>: 3, <class 'functions.cgp_max'>: 7, <class 'functions.greater_than'>: 4, <class 'functions.sat_mul'>: 4, <class 'functions.scale_up'>: 4, <class 'functions.scale_down'>: 1}

@@ -1,1 +1,0 @@
-bash: cd: Desktop/: No such file or directory
