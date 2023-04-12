@@ -40,7 +40,9 @@ class Experiment:
   def __init__(self, parents: int, window_size: int, n_outputs: int, n_columns: int,
                n_rows: int, levelsback: int, primitives: Tuple, noffsprings: int,
                mutationrate: float, generations: int, termination_fitness: float,
-               experimented_values: Dict[str, Any], objective: Callable, use_logger: bool = True, *args, **kwargs):
+               experimented_values: Dict[str, Any], objective: Callable, use_logger: bool = True,
+               experiment_name: str = "", *args, **kwargs):
+    self.experiment_name = experiment_name
     self.repetition_id = 0
     self.end_log_function = lambda exp_logger, pop: None
     self.objective = objective
@@ -77,8 +79,11 @@ class Experiment:
     except FileExistsError as e:
       pass
     file_path = f"{file_path}/"
-    for key, value in self.experimented_values.items():
-      file_path = f"{file_path}{key}_{value}"
+    if self.experiment_name and len(self.experimented_values.items()) > 0:
+      file_path = f"{file_path}{self.experimented_values.items[0]}_{self.experiment_name}"
+    else:
+      for key, value in self.experimented_values.items():
+        file_path = f"{file_path}{key}_{value}"
     file_path = f"{file_path}_repetition_{self.repetition_id}"
 
     experiment_logger = logging.getLogger("experiment_logger")
@@ -109,6 +114,7 @@ class Experiment:
                **self.evolve_params,
                print_progress=True,
                callback=self.log_generation)
+    self.logger.info(f"Seed: {self.population_params['seed']}")
     self.end_log_function(self.logger, self.pop)
     return self.pop
 
@@ -124,19 +130,19 @@ if __name__ == "__main__":
   from image_setup_utils import create_detection_dataset_from_image
   from functions import sat_add, sat_sub, cgp_min, cgp_max, greater_than,sat_mul,scale_up,scale_down
   experiment_settings = {
-    "parents": 2,
+    "parents": [1, 2, 4, 6, 9, 12],
     "window_size": 5,
     "n_outputs": 1,
-    "n_columns": 14,
-    "n_rows": 15,
+    "n_columns": 12,
+    "n_rows": 13,
     "levelsback": 3,
     "primitives": (sat_add, sat_sub,
                    cgp_min, cgp_max,
                    greater_than, sat_mul, scale_up,
                    scale_down),
     "noffsprings": 25,
-    "mutationrate": 0.08,
-    "generations": [300],
+    "mutationrate": 0.07,
+    "generations": 180,
     "termination_fitness": 1.0}
 
   dataset_x, dataset_y = create_detection_dataset_from_image("lenna.png",
@@ -149,4 +155,4 @@ if __name__ == "__main__":
 
   for experiment in experiments:
     experiment.add_end_log_function(detection_wrapper.final_log_function)
-    experiment.run(repetitions=5)
+    experiment.run(repetitions=20)

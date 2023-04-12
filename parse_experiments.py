@@ -4,12 +4,12 @@ import re
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import scipy.stats as stats
 
-
-def parse_experiment():
+def parse_experiment(experiment_folder: str):
   data = []
-  for file_name in os.listdir("logs_n_columns_n_rows"):
-    keys, values, fitness = parse_file(f"logs_n_columns_n_rows/{file_name}")
+  for file_name in os.listdir(experiment_folder):
+    keys, values, fitness = parse_file(f"{experiment_folder}/{file_name}")
     data.append([*values, fitness])
   return pd.DataFrame(data, columns=[*keys, "fitness"])
 
@@ -28,7 +28,7 @@ def parse_file(file_name):
       generations.append(generation)
       fitnesses.append(fitness)
 
-    return keys, values, fitnesses[59]
+    return keys, values, fitnesses[-1]
 
 
 def parse_generation_line(line):
@@ -45,8 +45,8 @@ def parse_file_name(file_name):
   filtered_split = list(filtered_split)
   keys = filtered_split[::2][:-1]
   values = filtered_split[1::2][:-1]
-  values[0] = int(values[0][:-1])
-  values[1] = int(values[1])
+  for i, value in enumerate(values):
+    values[i] = float(value)
   return keys, values
 
 
@@ -71,7 +71,44 @@ def boxplot_from_columns_rows(df: pd.DataFrame):
     fig.show()
   plt.show()
 
+def boxplot_per_column(df: pd.DataFrame):
+  df = df.copy(deep=True)
+  fig = plt.figure()
+
+  ax = fig.add_subplot(1, 1, 1)
+  sns.boxplot(x="columns", y="fitness", data=df, ax=ax)
+
+def boxplot_per_row(df: pd.DataFrame):
+  df = df.copy(deep=True)
+  fig = plt.figure()
+  ax = fig.add_subplot(1, 1, 1)
+  sns.boxplot(x="rows", y="fitness", data=df, ax=ax)
+
+def boxplot_per_L_back(df: pd.DataFrame):
+  df = df.copy(deep=True)
+  fig = plt.figure()
+  ax = fig.add_subplot(1, 1, 1)
+  sns.boxplot(x="levelsback", y="fitness", data=df, ax=ax)
+
+def boxplot_per_mutationrate(df: pd.DataFrame):
+  df = df.copy(deep=True)
+  fig = plt.figure()
+  ax = fig.add_subplot(1, 1, 1)
+  sns.boxplot(x="mutationrate", y="fitness", data=df, ax=ax)
+
+def t_test_mutationrate(df: pd.DataFrame):
+  df = df.copy(deep=True)
+  df_004 = df[df['mutationrate'] == 0.04]
+  df_007 = df[df['mutationrate'] == 0.5]
+  res = stats.ttest_ind(df_004['fitness'], df_007['fitness'], equal_var=False)
+  return res
+
 
 if __name__ == "__main__":
-  df = parse_experiment()
-  boxplot_from_columns_rows(df)
+  df = parse_experiment("logs_mutationrate")
+  print(t_test_mutationrate(df))
+  boxplot_per_mutationrate(df)
+  # boxplot_per_row(df)
+  # boxplot_per_column(df)
+  # boxplot_from_columns_rows(df)
+  plt.show()
