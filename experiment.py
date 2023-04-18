@@ -16,7 +16,7 @@ import cgp
 import numpy as np
 
 
-def generate_experiments_from_settings(settings: Dict, experiment_names: List[str]):
+def generate_experiments_from_settings(settings: Dict, experiment_names: List[str] = []):
   experiment_varying_vars = []
   for key, value in settings.items():
     if isinstance(value, list):
@@ -36,11 +36,19 @@ def generate_experiments_from_settings(settings: Dict, experiment_names: List[st
                       setting in settings[experiment_varying_vars[0]]]
   for key in experiment_varying_vars:
     del settings[key]
-  experiments = (Experiment(**settings,
-                            **varying_params_group,
-                            experiment_name=experiment_names[i],
-                            experimented_values=varying_params_group) for
-                 i, varying_params_group in enumerate(varying_params))
+  if experiment_names:
+    experiments = (Experiment(**settings,
+                              **varying_params_group,
+                              experiment_name=experiment_names[i],
+                              experimented_values=varying_params_group) for
+                   i, varying_params_group in enumerate(varying_params))
+  else:
+    print("No experiment names provided, using default name")
+    experiments = (Experiment(**settings,
+                              **varying_params_group,
+                              experimented_values=varying_params_group) for
+                   varying_params_group in varying_params)
+
   return experiments
 
 
@@ -189,7 +197,7 @@ def detection_experiments():
   experiment_settings = {
     "parents": 2,
     "window_size": 5,
-    "n_outputs": 1,
+    "n_outputs": [1],
     "n_columns": 10, #[25], # 16, 20,
     "n_rows": 10, #[20, 25], # 6, 8, 12, 14, 16,
     "levelsback": 3,
@@ -218,5 +226,5 @@ def detection_experiments():
 
 
 if __name__ == "__main__":
-  # detection_experiments()
-  regression_experiments()
+  detection_experiments()
+  # regression_experiments()
