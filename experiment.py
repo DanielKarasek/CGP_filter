@@ -3,15 +3,20 @@ import os
 from itertools import product
 from typing import Any, Callable, Dict, List, Tuple
 
+import cv2
+
 from detection import DetectionWrapper
+from regression import RegressionWrapper
+from image_setup_utils import create_detection_dataset_from_image, create_regression_dataset
+from functions import sat_add, sat_sub, cgp_min, cgp_max, greater_than, sat_mul, scale_up, scale_down
+
+from cgp_utils import restore_image
 
 import cgp
 import numpy as np
 
 
-
-
-def generate_experiments_from_settings(settings: Dict, ):
+def generate_experiments_from_settings(settings: Dict, experiment_names: List[str]):
   experiment_varying_vars = []
   for key, value in settings.items():
     if isinstance(value, list):
@@ -31,8 +36,11 @@ def generate_experiments_from_settings(settings: Dict, ):
                       setting in settings[experiment_varying_vars[0]]]
   for key in experiment_varying_vars:
     del settings[key]
-  experiments = (Experiment(**settings, **varying_params_group, experimented_values=varying_params_group) for
-                 varying_params_group in varying_params)
+  experiments = (Experiment(**settings,
+                            **varying_params_group,
+                            experiment_name=experiment_names[i],
+                            experimented_values=varying_params_group) for
+                 i, varying_params_group in enumerate(varying_params))
   return experiments
 
 
@@ -41,7 +49,8 @@ class Experiment:
                n_rows: int, levelsback: int, primitives: Tuple, noffsprings: int,
                mutationrate: float, generations: int, termination_fitness: float,
                experimented_values: Dict[str, Any], objective: Callable, use_logger: bool = True,
-               experiment_name: str = "", *args, **kwargs):
+               experiment_name: str = "", experiment_type: str = "regression", *args, **kwargs):
+    self.experiment_type = experiment_type
     self.experiment_name = experiment_name
     self.repetition_id = 0
     self.end_log_function = lambda exp_logger, pop: None
@@ -57,7 +66,7 @@ class Experiment:
                           "primitives": primitives}
     self.ea_params = {"n_offsprings": noffsprings,
                       "mutation_rate": mutationrate,
-                      "n_processes": 8}
+                      "n_processes": 28}
 
     self.evolve_params = {"max_generations": generations, "termination_fitness": termination_fitness}
 
@@ -71,7 +80,7 @@ class Experiment:
     self.end_log_function = end_log_function
 
   def _init_logger(self):
-    file_path = "./logs"
+    file_path = f"./logs_{self.experiment_type}"
     for key in self.experimented_values.keys():
       file_path = f"{file_path}_{key}"
     try:
@@ -100,8 +109,9 @@ class Experiment:
     return experiment_logger
 
   def log_generation(self, pop: cgp.Population):
-    best_fitness = pop.champion.fitness
-    self.logger.info(f"Generation: {self.pop.generation} Best fitness: {best_fitness}")
+    if self.use_logger:
+      best_fitness = pop.champion.fitness
+      self.logger.info(f"Generation: {self.pop.generation} Best fitness: {best_fitness}")
 
   def _run(self) -> cgp.Population:
     self.population_params["seed"] = np.random.randint(0, 1e7)
@@ -114,9 +124,26 @@ class Experiment:
                **self.evolve_params,
                print_progress=True,
                callback=self.log_generation)
-    self.logger.info(f"Seed: {self.population_params['seed']}")
-    self.end_log_function(self.logger, self.pop)
+
+    if self.use_logger:
+      self.logger.info(f"Seed: {self.population_params['seed']}")
+      self.end_log_function(self.logger, self.pop)
+    dataset_x, dataset_y, noised_downscaled, filter_vector = create_regression_dataset("lenna.png", 7)
+    dataset_x = dataset_x.reshape((dataset_x.shape[0], -1))
+    filtered_values = self.pop.champion.to_numpy()(dataset_x.T)
+    restored = restore_image(detected_binary_vector=filter_vector, filtered_values_vector=filtered_values, noised_image=noised_downscaled)
+    restored += 0.5
+
+    cv2.namedWindow("restored", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("restored",800,800)
+    cv2.imshow('restored', restored)
+    cv2.namedWindow("orig", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("orig", 800, 800)
+    cv2.imshow('orig', noised_downscaled+0.5)
+
+    cv2.waitKey(0)
     return self.pop
+
 
   def run(self, repetitions: int):
     for repetition in range(repetitions):
@@ -126,15 +153,13 @@ class Experiment:
       self._run()
 
 
-if __name__ == "__main__":
-  from image_setup_utils import create_detection_dataset_from_image
-  from functions import sat_add, sat_sub, cgp_min, cgp_max, greater_than,sat_mul,scale_up,scale_down
+def regression_experiments():
   experiment_settings = {
-    "parents": [1, 2, 4, 6, 9, 12],
-    "window_size": 5,
-    "n_outputs": 1,
-    "n_columns": 12,
-    "n_rows": 13,
+    "parents": 2,
+    "window_size": 7,
+    "n_outputs": [1],
+    "n_columns": 10,  # [25], # 16, 20,
+    "n_rows": 10,  # [20, 25], # 6, 8, 12, 14, 16,
     "levelsback": 3,
     "primitives": (sat_add, sat_sub,
                    cgp_min, cgp_max,
@@ -142,8 +167,42 @@ if __name__ == "__main__":
                    scale_down),
     "noffsprings": 25,
     "mutationrate": 0.07,
-    "generations": 180,
-    "termination_fitness": 1.0}
+    "generations": 800,
+    "experiment_type": "Regression",
+    "termination_fitness": 0.0,
+    "use_logger": True}
+
+  dataset_x, dataset_y, noised_downscaled, filter_vector = (
+    create_regression_dataset("lenna.png", window_size=experiment_settings["window_size"]))
+  regression_wrapper = RegressionWrapper(dataset_x, dataset_y)
+
+  experiment_settings["objective"] = regression_wrapper.objective
+
+  experiments = generate_experiments_from_settings(experiment_settings)
+
+  for experiment in experiments:
+    experiment.add_end_log_function(regression_wrapper.final_log_function)
+    experiment.run(repetitions=20)
+
+
+def detection_experiments():
+  experiment_settings = {
+    "parents": 2,
+    "window_size": 5,
+    "n_outputs": 1,
+    "n_columns": 10, #[25], # 16, 20,
+    "n_rows": 10, #[20, 25], # 6, 8, 12, 14, 16,
+    "levelsback": 3,
+    "primitives": (sat_add, sat_sub,
+                   cgp_min, cgp_max,
+                   greater_than, sat_mul, scale_up,
+                   scale_down),
+    "noffsprings": 25,
+    "mutationrate": 0.07,
+    "generations": 100,
+    "experiment_type": "Detection",
+    "termination_fitness": 1.0,
+    "use_logger": True}
 
   dataset_x, dataset_y = create_detection_dataset_from_image("lenna.png",
                                                              window_size=experiment_settings["window_size"])
@@ -156,3 +215,8 @@ if __name__ == "__main__":
   for experiment in experiments:
     experiment.add_end_log_function(detection_wrapper.final_log_function)
     experiment.run(repetitions=20)
+
+
+if __name__ == "__main__":
+  # detection_experiments()
+  regression_experiments()

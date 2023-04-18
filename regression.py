@@ -12,9 +12,8 @@ from image_setup_utils import create_regression_dataset
 class RegressionWrapper:
   def __init__(self, dataset_x: np.ndarray, dataset_y: np.ndarray):
     self.dataset_x = dataset_x
-    self.dataset_y = np.clip(dataset_y, 0, 1)
+    self.dataset_y = dataset_y
     self.dataset_x = self.dataset_x.reshape((self.dataset_x.shape[0], -1))
-    self.dataset_x = np.asarray(self.dataset_x, dtype=np.float32)
 
   def squared_error(self, x: np.ndarray, y: np.ndarray) -> float:
     return np.sum(np.square(x-y))
@@ -37,6 +36,10 @@ class RegressionWrapper:
       return 10000.0
     return np.log(sigma_2/sigma_1) + (sigma_1**2 + (mu_1 - mu_2)**2)/(2*sigma_2**2)
 
+  def final_log_function(self, population, logger):
+    func_dict = population.champion.calculate_count_per_function()
+    logger.info(f"Function counts: {func_dict}")
+
   def objective(self, individual: IndividualBase) -> IndividualBase:
     if not individual.fitness_is_None:
       return individual
@@ -44,12 +47,17 @@ class RegressionWrapper:
     individual.fitness = 0.0
 
     predicted_y = filter_noise(individual, self.dataset_x)
-    error = self.squared_error(predicted_y, self.dataset_y)
-    individual.fitness += error/len(self.dataset_y)
-
+    error = self.abs_error(predicted_y, self.dataset_y)
+    individual.fitness = error/len(self.dataset_y)
     individual.fitness = -individual.fitness
 
+    func_dict = individual.calculate_count_per_function()
+    dict_values = [val for val in func_dict.values()]
+    ratio = 30/np.clip(np.sum(dict_values), 0, 30)
+    individual.fitness *= ratio
     return individual
+
+
 
 
 def setup_experiment(n_parents,

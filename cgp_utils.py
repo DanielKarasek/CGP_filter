@@ -39,10 +39,10 @@ def detect_indices_from_saved(cgp_file_path: str, noised_image: np.ndarray, slid
 
 def filter_noise(cgp: IndividualBase,
                  sliding_window: np.ndarray) -> np.ndarray:
-  f = cgp.to_func()
-  raw_estimates = np.array([f(*x) for x in sliding_window])
-  filtered_values = np.clip(raw_estimates, 0, 255)
-  filtered_values = filtered_values.astype(np.uint32)
+  f = cgp.to_numpy()
+  raw_estimates = f(sliding_window.T)
+  filtered_values = np.clip(raw_estimates, -0.5, 0.5)
+  filtered_values = filtered_values.astype(float)
   return filtered_values
 
 
