@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Generation: 0 Best fitness: 0.425531914893617
 Generation: 1 Best fitness: 0.4991104641759664
 Generation: 2 Best fitness: 0.4991104641759664
@@ -24,3 +25,9 @@ Generation: 22 Best fitness: 0.49915027919397914
 Generation: 23 Best fitness: 0.49915027919397914
 Generation: 24 Best fitness: 0.49915027919397914
 Generation: 25 Best fitness: 0.49919015225137675
+=======
+Generation: 0 Best fitness: 0.4980948520470207
+Generation: 1 Best fitness: 0.4990695040051784
+Generation: 2 Best fitness: 0.4990695040051784
+Generation: 3 Best fitness: 0.4990695040051784
+>>>>>>> 242ce4b (.)

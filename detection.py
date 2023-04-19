@@ -37,7 +37,7 @@ class DetectionWrapper:
 
     func_dict = individual.calculate_count_per_function()
     dict_values = [val for val in func_dict.values()]
-    ratio = np.clip(np.sum(dict_values), 0, 20)/20
+    ratio = np.clip(np.sum(dict_values), 0, 40)/40
     f_score *= ratio
     individual.fitness = f_score
 

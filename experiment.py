@@ -94,7 +94,7 @@ class Experiment:
                           "primitives": primitives}
     self.ea_params = {"n_offsprings": noffsprings,
                       "mutation_rate": mutationrate,
-                      "n_processes": 28}
+                      "n_processes": 14}
 
     self.evolve_params = {"max_generations": generations, "termination_fitness": termination_fitness}
 
@@ -117,7 +117,7 @@ class Experiment:
       pass
     file_path = f"{file_path}/"
     if self.experiment_name and len(self.experimented_values.items()) > 0:
-      file_path = f"{file_path}{self.experimented_values.items[0]}_{self.experiment_name}"
+      file_path = f"{file_path}{self.experiment_name}"
     else:
       for key, value in self.experimented_values.items():
         file_path = f"{file_path}{key}_{value}"
@@ -156,16 +156,16 @@ class Experiment:
     if self.use_logger:
       self.logger.info(f"Seed: {self.population_params['seed']}")
       self.end_log_function(self.logger, self.pop)
-    dataset_x, dataset_y, noised_downscaled, filter_vector = create_regression_dataset("lenna.png", 7)
-    dataset_x = dataset_x.reshape((dataset_x.shape[0], -1))
-    filtered_values = self.pop.champion.to_numpy()(dataset_x.T)
-    restored = restore_image(detected_binary_vector=filter_vector, filtered_values_vector=filtered_values, noised_image=noised_downscaled)
-    restored += 0.5
-    noised_downscaled += 0.5
-    global g_images, g_images_changed
-
-    g_images = [("restored", restored), ("orig", noised_downscaled)]
-    g_images_changed = True
+    # dataset_x, dataset_y, noised_downscaled, filter_vector = create_regression_dataset("lenna.png", 7)
+    # dataset_x = dataset_x.reshape((dataset_x.shape[0], -1))
+    # filtered_values = self.pop.champion.to_numpy()(dataset_x.T)
+    # restored = restore_image(detected_binary_vector=filter_vector, filtered_values_vector=filtered_values, noised_image=noised_downscaled)
+    # restored += 0.5
+    # noised_downscaled += 0.5
+    # global g_images, g_images_changed
+    #
+    # g_images = [("restored", restored), ("orig", noised_downscaled)]
+    # g_images_changed = True
 
     return self.pop
 
@@ -214,32 +214,35 @@ def detection_experiments():
   experiment_settings = {
     "parents": 2,
     "window_size": 5,
-    "n_outputs": [1],
-    "n_columns": 10, #[25], # 16, 20,
-    "n_rows": 10, #[20, 25], # 6, 8, 12, 14, 16,
-    "levelsback": 3,
+    "n_outputs": 1,
+    "n_columns": 14,
+    "n_rows": 25,
+    "levelsback": 6,
     "primitives": (sat_add, sat_sub,
                    cgp_min, cgp_max,
                    greater_than, sat_mul, scale_up,
                    scale_down),
     "noffsprings": 25,
     "mutationrate": 0.07,
-    "generations": 100,
+    "generations": 250,
     "experiment_type": "Detection",
     "termination_fitness": 1.0,
     "use_logger": True}
 
+
+
   dataset_x, dataset_y = create_detection_dataset_from_image("lenna.png",
                                                              window_size=experiment_settings["window_size"])
-  detection_wrapper = DetectionWrapper(dataset_x, dataset_y)
+  betas = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+  detection_wrappers = [DetectionWrapper(dataset_x, dataset_y, beta) for beta in betas]
+  names = ["beta_0.4", "beta_0.6", "beta_0.8", "beta_1.0", "beta_1.2", "beta_1.4"]
+  experiment_settings["objective"] = [detection_wrapper.objective for detection_wrapper in detection_wrappers]
 
-  experiment_settings["objective"] = detection_wrapper.objective
-
-  experiments = generate_experiments_from_settings(experiment_settings)
+  experiments = generate_experiments_from_settings(experiment_settings, experiment_names=names)
 
   for experiment in experiments:
-    experiment.add_end_log_function(detection_wrapper.final_log_function)
-    experiment.run(repetitions=20)
+    experiment.add_end_log_function(detection_wrappers[0].final_log_function)
+    experiment.run(repetitions=50)
 
 
 if __name__ == "__main__":
