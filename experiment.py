@@ -94,7 +94,7 @@ class Experiment:
                           "primitives": primitives}
     self.ea_params = {"n_offsprings": noffsprings,
                       "mutation_rate": mutationrate,
-                      "n_processes": 14}
+                      "n_processes": 70}
 
     self.evolve_params = {"max_generations": generations, "termination_fitness": termination_fitness}
 

@@ -16,8 +16,8 @@ def downscale_image(image: np.ndarray, scale_percent: float) -> np.ndarray:
 def create_dataset_from_image(path_to_image: str, window_size) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
   original_image = cv2.imread(path_to_image)[:, :, 0]
   original_image.squeeze()
-  original_downscaled_image = downscale_image(original_image, 0.4)
-  noised_downscaled_image = image_noising.hurl_noise(0.2, np.copy(original_downscaled_image))
+  original_downscaled_image = downscale_image(original_image, 0.3)
+  noised_downscaled_image = image_noising.hurl_noise(0.1, np.copy(original_downscaled_image))
   noised_sliding_window = create_sliding_window(noised_downscaled_image, window_size)
 
   original_flatenned = original_downscaled_image.reshape(-1)
