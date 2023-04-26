@@ -14,9 +14,10 @@ def downscale_image(image: np.ndarray, scale_percent: float) -> np.ndarray:
 
 
 def create_dataset_from_image(path_to_image: str, window_size) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+  np.random.seed(35784)
   original_image = cv2.imread(path_to_image)[:, :, 0]
   original_image.squeeze()
-  original_downscaled_image = downscale_image(original_image, 0.4)
+  original_downscaled_image = downscale_image(original_image, 0.3)
   noised_downscaled_image = image_noising.hurl_noise(0.2, np.copy(original_downscaled_image))
   noised_sliding_window = create_sliding_window(noised_downscaled_image, window_size)
 
@@ -49,7 +50,7 @@ def create_sliding_window(image: np.ndarray, window_size: int) -> np.ndarray:
 def regression_processing(target_image: np.ndarray) -> np.ndarray:
   target_image = np.asarray(target_image, float)
   target_image /= 255
-  target_image -= 0.5
+  # target_image -= 0.5
   return target_image
 
 

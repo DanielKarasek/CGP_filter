@@ -5,16 +5,16 @@ class sat_add(cgp.OperatorNode):
   """ A node that calculates the exponential of its input.
   """
   _arity = 2
-  _def_output = "np.add(x_0, x_1)"
-  _def_numpy_output = "np.add(x_0, x_1)"
+  _def_output = "np.clip(np.add(x_0, x_1), -4.0, 4.0)"
+  _def_numpy_output = "np.clip(np.add(x_0, x_1), -4.0, 4.0)"
 
 
 class sat_sub(cgp.OperatorNode):
   """ A node that calculates the exponential of its input.
   """
   _arity = 2
-  _def_output = "np.subtract(x_0, x_1)"
-  _def_numpy_output = "np.subtract(x_0, x_1)"
+  _def_output = "np.clip(np.subtract(x_0, x_1), -4.0, 4.0)"
+  _def_numpy_output = "np.clip(np.subtract(x_0, x_1), -4.0, 4.0)"
 
 
 class cgp_min(cgp.OperatorNode):
@@ -43,8 +43,8 @@ class sat_mul(cgp.OperatorNode):
   """ A node that calculates the exponential of its input.
   """
   _arity = 2
-  _def_output = "x_0*x_1"
-  _def_numpy_output = "x_0*x_1"
+  _def_output = "np.clip(x_0*x_1, -8.0, 8.0)"
+  _def_numpy_output = "np.clip(x_0*x_1, -8.0, 8.0)"
 
 
 class const_random(cgp.ConstantFloat):
