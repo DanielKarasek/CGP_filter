@@ -10,9 +10,10 @@ import scipy.stats as stats
 def parse_experiment(experiment_folder: str):
   data = []
   for file_name in os.listdir(experiment_folder):
-    keys, values, fitness = parse_file(f"{experiment_folder}/{file_name}")
-    data.append([*values, fitness[-1]])
-  return pd.DataFrame(data, columns=[*keys, "fitness"])
+    keys, values, fitness, total_pixels_noised, correctly_detected, false_alarm, missed_detection =\
+      parse_file(f"{experiment_folder}/{file_name}")
+    data.append([*values, fitness[-1], total_pixels_noised, correctly_detected, false_alarm, missed_detection])
+  return pd.DataFrame(data, columns=[*keys, "fitness", "total_pixels_noised", "correctly_detected", "false_alarm", "missed_detection"])
 
 def parse_experiment_all(experiment_folder: str):
   for file_name in os.listdir(experiment_folder):
@@ -23,8 +24,23 @@ def parse_experiment_all(experiment_folder: str):
     keys, values, fitness, generations = parse_file_all_generations(f"{experiment_folder}/{file_name}")
 
     data = np.hstack([data, [*values, fitness, generations]])
-  print(data.T)
   return pd.DataFrame(data.T, columns=[*keys, "fitness", "generation"])
+
+
+def parse_rest(lines):
+  if len(lines) != 3:
+    return [1, 1, 1, 1]
+  stats_line = lines[1]
+  matched = re.match(r'Total pixels noised:\s+([0-9.]+)\s+'
+                     r'Correctly detected:\s+([0-9.]+)\s+'
+                     r'False alarm:\s+([0-9.]+)\s+'
+                     r'Missed detection:\s+([0-9.]+)\s'
+                     , stats_line)
+  total_pixels_noised = float(matched.group(1))
+  correctly_detected = float(matched.group(2))
+  false_alarm = float(matched.group(3))
+  missed_detection = float(matched.group(4))
+  return total_pixels_noised, correctly_detected, false_alarm, missed_detection
 
 
 def parse_file(file_name):
@@ -40,12 +56,11 @@ def parse_file(file_name):
       generation, fitness = parsed_line
       generations.append(generation)
       fitnesses.append(fitness)
-
-    return keys, values, fitnesses
-
+    rest = parse_rest(lines[i:])
+    return keys, values, fitnesses, *rest
 
 def parse_file_all_generations(file_name):
-  keys, values, fitnesses = parse_file(file_name)
+  keys, values, fitnesses, *rest = parse_file(file_name)
   return keys, np.array([values] * len(fitnesses)).T, fitnesses, np.arange(len(fitnesses))
 
 
@@ -204,14 +219,71 @@ def rows():
   t_test_all(df, 'rows')
   plt.show()
 
+def f_beta():
+  df = parse_experiment_all("logs_Detection_objective")
+  df2 = parse_experiment("logs_Detection_objective")
+  df["beta"] = df['beta'].astype(float)
+  df2["beta"] = df2['beta'].astype(float)
+  boxplot(df2, "beta")
+  lineplot(df, "beta", error_bar= None)
+  print(df2.columns)
+  # define the objective function column indices
+  # optional. default is ALL columns
+  of_cols = [4, 5]
+  # define the convergence tolerance for the OF's
+  # optional. default is 1e-9
+  eps_tols = [1, 2]
+  import pareto
+  # sort
+  nondominated = pareto.eps_sort([list(df2.itertuples(False))], objectives=of_cols, epsilons=eps_tols)
+  df2 = pd.DataFrame.from_records(nondominated, columns=df2.columns)
+  df2["missed_detection"] = df2["missed_detection"]/df2["total_pixels_noised"]
+  df2["false_alarm"] = df2["false_alarm"]/df2["total_pixels_noised"]/5
+
+  scatterplot(df2, "missed_detection", "false_alarm", "beta")
+  t_test_all(df, 'beta')
+  plt.show()
+
+def scatterplot(df: pd.DataFrame, variable1: str, variable2: str, hue: str):
+  df = df.copy(deep=True)
+  fig = plt.figure()
+  ax = fig.add_subplot(1, 1, 1)
+  pallete = sns.color_palette("bright")
+  sns.scatterplot(x=variable1, palette=pallete, y=variable2, hue=hue, data=df, ax=ax)
+  ax.set_title(f"Scatterplot of {variable1} and {variable2}")
+  ax.set_xlabel(variable1)
+  ax.set_ylabel(variable2)
+  return ax
+
+def noffspirngs_generations():
+  df = parse_experiment_all("logs_Detection_noffsprings_generations")
+  df2 = parse_experiment("logs_Detection_noffsprings_generations")
+  df["noffsprings"] = df['noffsprings'].astype(int)
+  df2["noffsprings"] = df2['noffsprings'].astype(int)
+  boxplot(df2, "noffsprings")
+  lineplot(df, "noffsprings", error_bar= None)
+  t_test_all(df, 'noffsprings')
+  plt.show()
+
+def generations():
+  df = parse_experiment_all("logs_generations")
+  df2 = parse_experiment("logs_generations")
+  df["generations"] = df['generations'].astype(int)
+  df2["generations"] = df2['generations'].astype(int)
+  boxplot(df2, "generations")
+  lineplot(df, "generations", error_bar= None)
+  t_test_all(df, 'generations')
+  plt.show()
 
 if __name__ == "__main__":
-  parents()
+  # parents()
   # levelsback()
   # mutationrate()
   # columns()
   # rows()
-  # for file in os.listdir("logs_columns_rows"):
-  #   #rename format "n_columns_%xn_rows_%y_repetition_%z.log" to "columns_%x_rows_%y_repetition_%z.log"
-  #   os.rename(os.path.join("logs_columns_rows", file),
-  #             os.path.join("logs_columns_rows", file.replace("rows", "_rows")))
+  # f_beta()
+  noffspirngs_generations()
+  # for file in os.listdir("logs_Detection_noffsprings_generations"):
+  #   #rename format "noffsprings_%xgenerations_%y_repetition_%z.log" to "noffsprings_%x_generations_%y_repetition_%z.log"\
+  #   os.rename(os.path.join("logs_Detection_noffsprings_generations", file),
+  #             os.path.join("logs_Detection_noffsprings_generations", file.replace("noffsprings_", "noffsprings_").replace("__generations_", "_generations_")))

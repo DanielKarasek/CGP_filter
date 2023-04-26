@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle
 from itertools import product
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -9,7 +10,7 @@ from detection import DetectionWrapper
 from regression import RegressionWrapper
 from image_setup_utils import create_detection_dataset_from_image, create_regression_dataset
 from functions import sat_add, sat_sub, cgp_min, cgp_max, greater_than, sat_mul, scale_up, scale_down
-
+from tqdm import tqdm
 from cgp_utils import restore_image
 
 import cgp
@@ -47,8 +48,10 @@ def generate_experiments_from_settings(settings: Dict, experiment_names: List[st
           "No more than two parameters should be varied at the same time")
   varying_params = []
   if len(experiment_varying_vars) == 2:
-    for first_setting, second_setting in product(settings[experiment_varying_vars[0]],
-                                                 settings[experiment_varying_vars[1]]):
+    # for first_setting, second_setting in product(settings[experiment_varying_vars[0]],
+    #                                              settings[experiment_varying_vars[1]]):
+    for first_setting, second_setting in zip(settings[experiment_varying_vars[0]],
+                                             settings[experiment_varying_vars[1]]):
        varying_params.append({experiment_varying_vars[0]: first_setting,
                               experiment_varying_vars[1]: second_setting})
   elif len(experiment_varying_vars) == 1:
@@ -94,7 +97,7 @@ class Experiment:
                           "primitives": primitives}
     self.ea_params = {"n_offsprings": noffsprings,
                       "mutation_rate": mutationrate,
-                      "n_processes": 14}
+                      "n_processes": 1}
 
     self.evolve_params = {"max_generations": generations, "termination_fitness": termination_fitness}
 
@@ -142,32 +145,60 @@ class Experiment:
       self.logger.info(f"Generation: {self.pop.generation} Best fitness: {best_fitness}")
 
   def _run(self) -> cgp.Population:
-    self.population_params["seed"] = np.random.randint(0, 1e7)
-    self.pop = cgp.Population(**self.population_params, genome_params=self.genome_params)
-    ea = cgp.ea.MuPlusLambda(**self.ea_params)
-
-    cgp.evolve(self.pop,
-               self.objective,
-               ea,
-               **self.evolve_params,
-               print_progress=True,
-               callback=self.log_generation)
+    self.evolve_loop()
 
     if self.use_logger:
       self.logger.info(f"Seed: {self.population_params['seed']}")
       self.end_log_function(self.logger, self.pop)
-    # dataset_x, dataset_y, noised_downscaled, filter_vector = create_regression_dataset("lenna.png", 7)
-    # dataset_x = dataset_x.reshape((dataset_x.shape[0], -1))
-    # filtered_values = self.pop.champion.to_numpy()(dataset_x.T)
-    # restored = restore_image(detected_binary_vector=filter_vector, filtered_values_vector=filtered_values, noised_image=noised_downscaled)
-    # restored += 0.5
-    # noised_downscaled += 0.5
-    # global g_images, g_images_changed
-    #
-    # g_images = [("restored", restored), ("orig", noised_downscaled)]
-    # g_images_changed = True
-
     return self.pop
+
+  def evolve_loop(self):
+    self.population_params["seed"] = 451878
+    self.pop = cgp.Population(**self.population_params, genome_params=self.genome_params)
+    ea = cgp.ea.MuPlusLambda(**self.ea_params)
+    total_generations = self.evolve_params["max_generations"]
+    evolve_params = self.evolve_params.copy()
+    evolve_params["max_generations"] = 2
+
+    last_best = -99999
+    last_improvement_step = 0
+
+    cgp.evolve(self.pop,
+               self.objective,
+               ea,
+               **evolve_params,
+               print_progress=False)
+    self.log_generation(self.pop)
+    mutation_rate_increase_accumulator = 0
+    with tqdm(total=100) as pbar:
+      for i in np.arange(total_generations):
+        cgp.hl_api.evolve_continue(self.pop,
+                                   self.objective,
+                                   ea,
+                                   **evolve_params,
+                                   print_progress=False)
+        self.log_generation(self.pop)
+        self.pop.generation = 0
+        mutation_rate_increase_accumulator += 1
+        if self.pop.champion.fitness > last_best:
+          last_best = self.pop.champion.fitness
+          last_improvement_step = i
+
+          ea._mutation_rate = self.ea_params["mutation_rate"]
+          self.pop.n_parents = self.population_params["n_parents"]
+
+          mutation_rate_increase_accumulator = 0
+
+        if mutation_rate_increase_accumulator > total_generations//70:
+          ea._mutation_rate = np.clip(ea._mutation_rate * 1.1, 0, self.ea_params["mutation_rate"]*1.6)
+          self.pop.n_parents = np.clip(self.pop.n_parents+1, 0, min(self.ea_params["n_offsprings"], 8))
+          mutation_rate_increase_accumulator = 0
+
+        pbar.update(100 / total_generations)
+        pbar.set_description(f"Generation {i} Last improvement: {last_improvement_step}")
+        pbar.set_postfix_str(f"Best fitness: {last_best}, Mutation rate: {ea._mutation_rate:.2f}, Parents: {self.pop.n_parents}")
+    with open(f"regression_actual_best_{self.experiment_name}.pkl", "wb") as f:
+      pickle.dump(self.pop.champion, f)
 
 
   def run(self, repetitions: int):
@@ -182,20 +213,20 @@ def regression_experiments():
   experiment_settings = {
     "parents": 2,
     "window_size": 7,
-    "n_outputs": [1],
-    "n_columns": 10,  # [25], # 16, 20,
-    "n_rows": 10,  # [20, 25], # 6, 8, 12, 14, 16,
-    "levelsback": 3,
+    "n_outputs": 1,
+    "n_columns": 14,  # [25], # 16, 20,
+    "n_rows": 25,  # [20, 25], # 6, 8, 12, 14, 16,
+    "levelsback": 6,
     "primitives": (sat_add, sat_sub,
                    cgp_min, cgp_max,
                    greater_than, sat_mul, scale_up,
                    scale_down),
-    "noffsprings": 25,
+    "noffsprings": 6,
     "mutationrate": 0.07,
     "generations": 100,
     "experiment_type": "Regression",
     "termination_fitness": 0.0,
-    "use_logger": True}
+    "use_logger": [True]}
 
   dataset_x, dataset_y, noised_downscaled, filter_vector = (
     create_regression_dataset("lenna.png", window_size=experiment_settings["window_size"]))
@@ -207,14 +238,14 @@ def regression_experiments():
 
   for experiment in experiments:
     experiment.add_end_log_function(regression_wrapper.final_log_function)
-    experiment.run(repetitions=20)
+    experiment.run(repetitions=1)
 
 
 def detection_experiments():
   experiment_settings = {
     "parents": 2,
-    "window_size": 5,
-    "n_outputs": 1,
+    "window_size": 7,
+    "n_outputs": [1],
     "n_columns": 14,
     "n_rows": 25,
     "levelsback": 6,
@@ -222,9 +253,9 @@ def detection_experiments():
                    cgp_min, cgp_max,
                    greater_than, sat_mul, scale_up,
                    scale_down),
-    "noffsprings": 25,
+    "noffsprings": 6,
     "mutationrate": 0.07,
-    "generations": 250,
+    "generations": 12000,
     "experiment_type": "Detection",
     "termination_fitness": 1.0,
     "use_logger": True}
@@ -233,19 +264,20 @@ def detection_experiments():
 
   dataset_x, dataset_y = create_detection_dataset_from_image("lenna.png",
                                                              window_size=experiment_settings["window_size"])
-  betas = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
-  detection_wrappers = [DetectionWrapper(dataset_x, dataset_y, beta) for beta in betas]
-  names = ["beta_0.4", "beta_0.6", "beta_0.8", "beta_1.0", "beta_1.2", "beta_1.4"]
-  experiment_settings["objective"] = [detection_wrapper.objective for detection_wrapper in detection_wrappers]
+  # betas = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+  # detection_wrappers = [DetectionWrapper(dataset_x, dataset_y, beta) for beta in betas]
+  # names = ["beta_0.4", "beta_0.6", "beta_0.8", "beta_1.0", "beta_1.2", "beta_1.4"]
+  # experiment_settings["objective"] = [detection_wrapper.objective for detection_wrapper in detection_wrappers]
+  detection_wrapper = DetectionWrapper(dataset_x, dataset_y, beta=1.2)
 
-  experiments = generate_experiments_from_settings(experiment_settings, experiment_names=names)
+  experiment_settings["objective"] = detection_wrapper.objective
+  experiments = generate_experiments_from_settings(experiment_settings)
 
   for experiment in experiments:
-    experiment.add_end_log_function(detection_wrappers[0].final_log_function)
-    experiment.run(repetitions=50)
+    experiment.add_end_log_function(detection_wrapper.final_log_function)
+    experiment.run(repetitions=20)
 
 
 if __name__ == "__main__":
-  threading.Thread(target=image_shower).start()
   # detection_experiments()
   regression_experiments()

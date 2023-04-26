@@ -36,7 +36,7 @@ class RegressionWrapper:
       return 10000.0
     return np.log(sigma_2/sigma_1) + (sigma_1**2 + (mu_1 - mu_2)**2)/(2*sigma_2**2)
 
-  def final_log_function(self, logger, population):
+  def final_log_function(self, logger, population: cgp.Population):
     func_dict = population.champion.calculate_count_per_function()
     logger.info(f"Function counts: {func_dict}")
 
@@ -53,7 +53,7 @@ class RegressionWrapper:
 
     func_dict = individual.calculate_count_per_function()
     dict_values = [val for val in func_dict.values()]
-    ratio = 30/np.clip(np.sum(dict_values), 0, 30)
+    ratio = 50/np.clip(np.sum(dict_values), 0, 50)
     individual.fitness *= ratio
     return individual
 
