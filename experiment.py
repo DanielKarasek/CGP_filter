@@ -14,6 +14,26 @@ from cgp_utils import restore_image
 
 import cgp
 import numpy as np
+import threading
+import time
+
+g_images = []
+g_images_changed = False
+g_images_changed_lock = threading.Lock()
+
+
+def image_shower():
+  global g_images, g_images_changed
+  while True:
+    if g_images_changed:
+      cv2.destroyAllWindows()
+      for name, image in g_images:
+        cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(name, 640, 640)
+        cv2.imshow(name, image)
+
+      g_images_changed = False
+    cv2.waitKey(5000)
 
 
 def generate_experiments_from_settings(settings: Dict, experiment_names: List[str] = []):
@@ -136,6 +156,17 @@ class Experiment:
     if self.use_logger:
       self.logger.info(f"Seed: {self.population_params['seed']}")
       self.end_log_function(self.logger, self.pop)
+    # dataset_x, dataset_y, noised_downscaled, filter_vector = create_regression_dataset("lenna.png", 7)
+    # dataset_x = dataset_x.reshape((dataset_x.shape[0], -1))
+    # filtered_values = self.pop.champion.to_numpy()(dataset_x.T)
+    # restored = restore_image(detected_binary_vector=filter_vector, filtered_values_vector=filtered_values, noised_image=noised_downscaled)
+    # restored += 0.5
+    # noised_downscaled += 0.5
+    # global g_images, g_images_changed
+    #
+    # g_images = [("restored", restored), ("orig", noised_downscaled)]
+    # g_images_changed = True
+
     return self.pop
 
 
@@ -161,7 +192,7 @@ def regression_experiments():
                    scale_down),
     "noffsprings": 25,
     "mutationrate": 0.07,
-    "generations": 800,
+    "generations": 100,
     "experiment_type": "Regression",
     "termination_fitness": 0.0,
     "use_logger": True}
@@ -215,5 +246,6 @@ def detection_experiments():
 
 
 if __name__ == "__main__":
-  detection_experiments()
-  # regression_experiments()
+  threading.Thread(target=image_shower).start()
+  # detection_experiments()
+  regression_experiments()
