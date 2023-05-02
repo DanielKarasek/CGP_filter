@@ -1,3 +1,6 @@
+"""
+Lot of functions used for parsing experiments.
+"""
 import os
 import re
 
@@ -14,6 +17,7 @@ def parse_experiment(experiment_folder: str):
       parse_file(f"{experiment_folder}/{file_name}")
     data.append([*values, fitness[-1], total_pixels_noised, correctly_detected, false_alarm, missed_detection])
   return pd.DataFrame(data, columns=[*keys, "fitness", "total_pixels_noised", "correctly_detected", "false_alarm", "missed_detection"])
+
 
 def parse_experiment_all(experiment_folder: str):
   for file_name in os.listdir(experiment_folder):
@@ -61,7 +65,11 @@ def parse_file(file_name):
 
 def parse_file_all_generations(file_name):
   keys, values, fitnesses, *rest = parse_file(file_name)
-  return keys, np.array([values] * len(fitnesses)).T, fitnesses, np.arange(len(fitnesses))
+  if "noffsprings" in keys:
+    generations = np.linspace(0, 1600, len(fitnesses))
+  else:
+    generations = np.linspace(0, len(fitnesses), len(fitnesses))
+  return keys, np.array([values] * len(fitnesses)).T, fitnesses, generations
 
 
 def parse_generation_line(line):
@@ -145,15 +153,22 @@ def boxplot(df: pd.DataFrame, variable: str):
   ax.set_xlabel(variable)
   ax.set_ylabel("Fitness")
   ax.set_ylim(0, 1)
+  fig.savefig(f"plots_and_images/boxplot_{variable}.png")
+
 
 def lineplot(df: pd.DataFrame, variable: str, error_bar):
   df = df.copy(deep=True)
   fig = plt.figure()
   ax = fig.add_subplot(1, 1, 1)
   pallete = sns.color_palette("bright")
-  ax.set_ylim(0, 1)
+  ax.set_ylim(0.2, 0.75)
+  ax.set_title(f"Lineplot of {variable}")
+  ax.set_xlabel("Generation")
+  ax.set_ylabel("Fitness")
   # df = df[df["mutationrate"] < 0.15]
   sns.lineplot(x="generation", y="fitness", hue=variable, data=df, ax=ax, palette=pallete, errorbar=error_bar)
+  fig.savefig(f"plots_and_images/lineplot_{variable}.png")
+
 
 def t_test_all(df: pd.DataFrame, variable: str):
   """t_test between all pairs of unique values of variable"""
@@ -167,9 +182,15 @@ def t_test_all(df: pd.DataFrame, variable: str):
       res = stats.ttest_ind(df1['fitness'], df2['fitness'], equal_var=False, alternative='greater')
       print(f"{variable} {value1} {value2} {res}")
 
+
+
+
+
+
+
 def parents():
-  df = parse_experiment_all("logs_parents")
-  df2 = parse_experiment("logs_parents")
+  df = parse_experiment_all("all_logs/logs_parents")
+  df2 = parse_experiment("all_logs/logs_parents")
   df["parents"] = df['parents'].astype(int)
   df2["parents"] = df2['parents'].astype(int)
   boxplot(df2, "parents")
@@ -177,9 +198,10 @@ def parents():
   t_test_all(df, 'parents')
   plt.show()
 
+
 def levelsback():
-  df = parse_experiment_all("logs_levelsback")
-  df2 = parse_experiment("logs_levelsback")
+  df = parse_experiment_all("all_logs/logs_levelsback")
+  df2 = parse_experiment("all_logs/logs_levelsback")
   df["levelsback"] = df['levelsback'].astype(int)
   df2["levelsback"] = df2['levelsback'].astype(int)
   boxplot(df2, "levelsback")
@@ -188,8 +210,8 @@ def levelsback():
   plt.show()
 
 def mutationrate():
-  df = parse_experiment_all("logs_mutationrate")
-  df2 = parse_experiment("logs_mutationrate")
+  df = parse_experiment_all("all_logs/logs_mutationrate")
+  df2 = parse_experiment("all_logs/logs_mutationrate")
   df["mutationrate"] = df['mutationrate'].astype(float)
   df2["mutationrate"] = df2['mutationrate'].astype(float)
   boxplot(df2, "mutationrate")
@@ -199,19 +221,19 @@ def mutationrate():
 
 
 def columns():
-  df = parse_experiment_all("logs_columns_rows")
-  df2 = parse_experiment("logs_columns_rows")
+  df = parse_experiment_all("all_logs/logs_columns_rows")
+  df2 = parse_experiment("all_logs/logs_columns_rows")
   df["columns"] = df['columns'].astype(int)
   df2["columns"] = df2['columns'].astype(int)
   boxplot(df2, "columns")
-  lineplot(df, "columns", error_bar= None)
+  lineplot(df, "columns", error_bar= ("ci", 85))
   t_test_all(df, 'columns')
   plt.show()
 
 
 def rows():
-  df = parse_experiment_all("logs_columns_rows")
-  df2 = parse_experiment("logs_columns_rows")
+  df = parse_experiment_all("all_logs/logs_columns_rows")
+  df2 = parse_experiment("all_logs/logs_columns_rows")
   df["rows"] = df['rows'].astype(int)
   df2["rows"] = df2['rows'].astype(int)
   boxplot(df2, "rows")
@@ -219,9 +241,10 @@ def rows():
   t_test_all(df, 'rows')
   plt.show()
 
+
 def f_beta():
-  df = parse_experiment_all("logs_Detection_objective")
-  df2 = parse_experiment("logs_Detection_objective")
+  df = parse_experiment_all("all_logs/logs_Detection_objective")
+  df2 = parse_experiment("all_logs/logs_Detection_objective")
   df["beta"] = df['beta'].astype(float)
   df2["beta"] = df2['beta'].astype(float)
   boxplot(df2, "beta")
@@ -241,8 +264,11 @@ def f_beta():
   df2["false_alarm"] = df2["false_alarm"]/df2["total_pixels_noised"]/5
 
   scatterplot(df2, "missed_detection", "false_alarm", "beta")
+  plt.title("Pareto front for missed detection and false alarm")
   t_test_all(df, 'beta')
+  plt.savefig("pareto.png")
   plt.show()
+
 
 def scatterplot(df: pd.DataFrame, variable1: str, variable2: str, hue: str):
   df = df.copy(deep=True)
@@ -255,9 +281,20 @@ def scatterplot(df: pd.DataFrame, variable1: str, variable2: str, hue: str):
   ax.set_ylabel(variable2)
   return ax
 
+
 def noffspirngs_generations():
-  df = parse_experiment_all("logs_Detection_noffsprings_generations")
-  df2 = parse_experiment("logs_Detection_noffsprings_generations")
+  df = parse_experiment_all("all_logs/logs_Detection_noffsprings_generations")
+  df2 = parse_experiment("all_logs/logs_Detection_noffsprings_generations")
+  df["noffsprings"] = df['noffsprings'].astype(int)
+  df2["noffsprings"] = df2['noffsprings'].astype(int)
+  boxplot(df2, "noffsprings")
+  lineplot(df, "noffsprings", error_bar= None)
+  t_test_all(df, 'noffsprings')
+  plt.show()
+
+def noffspirngs_generations_2():
+  df = parse_experiment_all("all_logs/logs_Detection_noffsprings_generations")
+  df2 = parse_experiment("all_logs/logs_Detection_noffsprings_generations")
   df["noffsprings"] = df['noffsprings'].astype(int)
   df2["noffsprings"] = df2['noffsprings'].astype(int)
   boxplot(df2, "noffsprings")
@@ -266,14 +303,15 @@ def noffspirngs_generations():
   plt.show()
 
 def generations():
-  df = parse_experiment_all("logs_generations")
-  df2 = parse_experiment("logs_generations")
+  df = parse_experiment_all("all_logs/logs_generations")
+  df2 = parse_experiment("all_logs/logs_generations")
   df["generations"] = df['generations'].astype(int)
   df2["generations"] = df2['generations'].astype(int)
   boxplot(df2, "generations")
   lineplot(df, "generations", error_bar= None)
   t_test_all(df, 'generations')
   plt.show()
+
 
 if __name__ == "__main__":
   # parents()
