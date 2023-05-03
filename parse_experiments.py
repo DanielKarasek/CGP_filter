@@ -316,11 +316,11 @@ def generations():
 if __name__ == "__main__":
   # parents()
   # levelsback()
-  # mutationrate()
+  mutationrate()
   # columns()
   # rows()
   # f_beta()
-  noffspirngs_generations()
+  # noffspirngs_generations()
   # for file in os.listdir("logs_Detection_noffsprings_generations"):
   #   #rename format "noffsprings_%xgenerations_%y_repetition_%z.log" to "noffsprings_%x_generations_%y_repetition_%z.log"\
   #   os.rename(os.path.join("logs_Detection_noffsprings_generations", file),
